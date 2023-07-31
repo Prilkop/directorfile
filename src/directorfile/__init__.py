@@ -1,1 +1,2 @@
-from directorfile.archive import Projector, RIFXArchiveResource
+from directorfile.projector import Projector
+from directorfile.archive import RIFXArchiveResource

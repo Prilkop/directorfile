@@ -7,16 +7,11 @@ from directorfile.common import Endianness, EndiannessAwareReader
 
 
 class Resource(metaclass=ABCMeta):
-    _fp: BinaryIO
-    _reader: EndiannessAwareReader
-    position: int
     size: int
 
-    def __init__(self, fp: BinaryIO, position: int, size: Optional[int] = None):
-        self._fp = fp
-
-        self._fp.seek(position)
-        tag = self._fp.read(4).decode('ascii')
+    def load(self, fp: BinaryIO, position: int, size: Optional[int] = None) -> Resource:
+        fp.seek(position)
+        tag = fp.read(4).decode('ascii')
 
         if tag == self.TAG:
             endianness = Endianness.BIG_ENDIAN
@@ -24,30 +19,27 @@ class Resource(metaclass=ABCMeta):
             endianness = Endianness.LITTLE_ENDIAN
         else:
             raise TypeError(f'Expected {self.TAG} tag, got {tag} instead')
-        self._reader = EndiannessAwareReader(self._fp, endianness)
+        reader = EndiannessAwareReader(fp, endianness)
 
-        read_size = self._reader.read_ui32()
+        read_size = reader.read_ui32()
         if size is None:
             size = read_size
         else:
             assert read_size <= size
 
-        self.position = position
         self.size = size
 
-        self._parse()
+        self._parse(reader, position, size)
+        return self
 
     @abstractmethod
-    def _parse(self):
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
         pass
 
     @property
     @abstractmethod
     def TAG(self) -> str:
         pass
-
-    def __repr__(self):
-        return f'<{self.__class__.__name__} "{self._fp.name}" @ 0x{self.position:08x}>'
 
 
 class ArchiveParser(metaclass=ABCMeta):
@@ -74,12 +66,12 @@ class RIFXArchiveResource(Resource):
     def init_parsers(cls, *parsers):
         cls.PARSERS = parsers
 
-    def _parse(self):
-        tag = self._reader.read_tag()
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+        tag = reader.read_tag()
 
         for parser_class in self.PARSERS:
             if tag in parser_class.TYPES:
-                parser = parser_class(self, self._reader)
+                parser = parser_class(self, reader)
                 break
         else:
             raise TypeError(f'Could not find parser for a {tag} archive')

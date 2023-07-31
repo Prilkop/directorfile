@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import BinaryIO, Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 from directorfile.archive.base import ArchiveParser, RIFXArchiveResource, Resource
 from directorfile.common import EndiannessAwareReader
@@ -26,12 +26,11 @@ class GenericResource(Resource):
     def TAG(self):
         return self._tag
 
-    def __init__(self, tag: str, fp: BinaryIO, position: int, size: Optional[int] = None):
+    def __init__(self, tag: str):
         self._tag = tag
-        super().__init__(fp, position, size)
 
-    def _parse(self):
-        self.data = self._reader.read_buffer(self.size - 8)
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+        self.data = reader.read_buffer(size - 8)
 
 
 class IMapResource(Resource):
@@ -40,41 +39,38 @@ class IMapResource(Resource):
     mmap_position: int
     director_version: int
 
-    def _parse(self):
-        assert self._reader.read_ui32() == 0x01
-        self.mmap_position = self._reader.read_ui32()
-        self.director_version = self._reader.read_ui32()
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+        assert reader.read_ui32() == 0x01
+        self.mmap_position = reader.read_ui32()
+        self.director_version = reader.read_ui32()
         assert self.director_version in DIRECTOR_VERSIONS
-        assert self._reader.read_i32() == 0
+        assert reader.read_i32() == 0
 
 
 class MMapResource(Resource):
     TAG = 'mmap'
 
-    def __init__(self, fp: BinaryIO, position: int):
-        super().__init__(fp, position)
-
-    def _parse(self):
-        header_size = self._reader.read_ui16()
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+        header_size = reader.read_ui16()
         assert header_size == 0x18
-        width = self._reader.read_ui16()
+        width = reader.read_ui16()
         assert width == 0x14
 
-        allocated_length = self._reader.read_ui32()
-        length = self._reader.read_ui32()
+        allocated_length = reader.read_ui32()
+        length = reader.read_ui32()
         assert allocated_length >= length
 
-        used_resources_count = self._reader.read_i32()
-        assert self._reader.read_i32() == -1
-        available_index = self._reader.read_i32()
+        used_resources_count = reader.read_i32()
+        assert reader.read_i32() == -1
+        available_index = reader.read_i32()
 
         entries = []
         for i in range(length):
-            entry_position = self._reader.get_current_pos()
-            tag = self._reader.read_tag()
-            size = self._reader.read_ui32()
-            position = self._reader.read_ui32()
-            self._reader.skip(8)
+            entry_position = reader.get_current_pos()
+            tag = reader.read_tag()
+            size = reader.read_ui32()
+            position = reader.read_ui32()
+            reader.skip(8)
             entries.append(MMapResource.Entry(entry_position=entry_position,
                                               tag=tag, size=size, position=position))
 
@@ -102,32 +98,34 @@ class DirectorArchiveParser(ArchiveParser):
         super().__init__(archive, reader)
         self._resources = {}
 
-    def _populate_fetched_resource(self, resource: Resource):
-        self._resources[(resource.TAG, resource.position)] = resource
+    def _populate_fetched_resource(self, resource: Resource, position: int):
+        self._resources[(resource.TAG, position)] = resource
 
     def _fetch_resource(self, entry: MMapResource.Entry) -> Resource:
         resource = self._resources.get((entry.tag, entry.position))
         if resource is None:
             resource = self._reconstruct_resource(entry)
-            self._populate_fetched_resource(resource)
+            self._populate_fetched_resource(resource, entry.position)
         return resource
 
     def _reconstruct_resource(self, entry: MMapResource.Entry) -> Resource:
-        return GenericResource(entry.tag, self._reader.fp, entry.position, entry.size)
+        return GenericResource(entry.tag).load(self._reader.fp, entry.position, entry.size)
 
     def parse(self):
-        imap = IMapResource(self._reader.fp, self._reader.get_current_pos())
+        imap_position = self._reader.get_current_pos()
 
-        mmap = MMapResource(self._reader.fp, imap.mmap_position)
-
-        self._populate_fetched_resource(self.archive)
-        self._populate_fetched_resource(imap)
-        self._populate_fetched_resource(mmap)
-
-        self.mmap = mmap
+        imap = IMapResource().load(self._reader.fp, imap_position)
+        mmap = MMapResource().load(self._reader.fp, imap.mmap_position)
 
         assert mmap.entries[0].tag == 'RIFX'
+        self._populate_fetched_resource(self.archive, mmap.entries[0].position)
+
         assert mmap.entries[1].tag == 'imap'
+        self._populate_fetched_resource(imap, imap_position)
+
         assert mmap.entries[2].tag == 'mmap'
+        self._populate_fetched_resource(mmap, imap.mmap_position)
+
+        self.mmap = mmap
 
         return mmap.entries[3:]

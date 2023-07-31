@@ -1,5 +1,4 @@
 from .base import RIFXArchiveResource
-from .projector import Projector
 
 
 def _init_parsers():

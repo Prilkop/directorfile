@@ -5,6 +5,7 @@ from typing import Dict, List, Sequence, Tuple, Type
 
 from directorfile.archive.base import Resource
 from directorfile.archive.director import DirectorArchiveParser, MMapResource
+from directorfile.common import EndiannessAwareReader
 
 
 class DictResource(Resource):
@@ -12,33 +13,33 @@ class DictResource(Resource):
 
     mapping: Dict[int, str]
 
-    def _parse(self):
-        values_chunk_offset = self._reader.read_ui32()
-        values_chunk_size = self._reader.read_ui32()
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+        values_chunk_offset = reader.read_ui32()
+        values_chunk_size = reader.read_ui32()
 
-        values_base = self.position + 8 + values_chunk_offset + 8
+        values_base = reader.get_current_pos() + values_chunk_offset
 
-        self._reader.skip(8)
-        length = self._reader.read_ui32()
+        reader.skip(8)
+        length = reader.read_ui32()
         assert length < 0x10000  # XXX: This is here to make sure we are in the right endianness. Unsure if it's needed
-        assert self._reader.read_ui32() == length
-        assert self._reader.read_ui16() == 0x1c
-        assert self._reader.read_ui16() == 0x08
-        self._reader.skip(8)
+        assert reader.read_ui32() == length
+        assert reader.read_ui16() == 0x1c
+        assert reader.read_ui16() == 0x08
+        reader.skip(8)
 
         pairs = []
         for i in range(length):
-            value_offset = self._reader.read_ui32()
-            key = self._reader.read_ui32()
+            value_offset = reader.read_ui32()
+            key = reader.read_ui32()
             pairs.append((key, value_offset))
 
-        assert self._reader.get_current_pos() == values_base
+        assert reader.get_current_pos() == values_base
 
         mapping = {}
         for key, value_offset in pairs:
             assert key not in mapping
-            self._reader.jump(values_base + value_offset)
-            value = self._reader.read_string()
+            reader.jump(values_base + value_offset)
+            value = reader.read_string()
             mapping[key] = value
         self.mapping = mapping
 
@@ -46,35 +47,35 @@ class DictResource(Resource):
 class ListResource(Resource):
     TAG = 'List'
 
-    def _parse(self):
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
         pass
 
 
 class BadDResource(Resource):
     TAG = 'BadD'
 
-    def _parse(self):
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
         pass
 
 
 class RIFFXtraFileResource(Resource):
     TAG = 'RIFF'
 
-    def _parse(self):
-        assert self._reader.read_tag() == 'Xtra'
-        assert self._reader.read_tag() == 'FILE'
+    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+        assert reader.read_tag() == 'Xtra'
+        assert reader.read_tag() == 'FILE'
 
-        headered_size = self._reader.read_ui32()
-        header_size = self._reader.read_ui32()
+        headered_size = reader.read_ui32()
+        header_size = reader.read_ui32()
         assert header_size == 0x1c
 
-        self._reader.skip(8)
-        uncompressed_size = self._reader.read_ui32()
-        self._reader.skip(4)
-        compressed_size = self._reader.read_ui32()
-        self._reader.skip(4)
+        reader.skip(8)
+        uncompressed_size = reader.read_ui32()
+        reader.skip(4)
+        compressed_size = reader.read_ui32()
+        reader.skip(4)
 
-        self.data = zlib.decompress(self._reader.read_buffer(compressed_size))
+        self.data = zlib.decompress(reader.read_buffer(compressed_size))
 
         assert len(self.data) == uncompressed_size
 
@@ -115,7 +116,7 @@ class ApplicationArchiveParser(DirectorArchiveParser):
         if tag == 'File':
             for resource_class in self.FILE_RESOURCE_CLASSES:
                 try:
-                    return resource_class(fp, position, size)
+                    return resource_class().load(fp=fp, position=position, size=size)
                 except TypeError:
                     pass
             else:
@@ -125,4 +126,4 @@ class ApplicationArchiveParser(DirectorArchiveParser):
             resource_class = self.RESOURCE_CLASSES.get(tag)
             if resource_class is None:
                 raise TypeError(f"Unknown resource type '{tag}'")
-            return resource_class(fp=fp, position=position, size=size)
+            return resource_class().load(fp=fp, position=position, size=size)
