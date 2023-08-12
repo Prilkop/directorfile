@@ -6,7 +6,7 @@ from enum import IntEnum
 from typing import Dict, List, Sequence, Tuple, Type
 
 from directorfile.archive.base import Resource
-from directorfile.archive.director import DirectorArchiveParser, MMapResource
+from directorfile.archive.director import DirectorArchiveParser, MMapResource, RIFXArchiveResource
 from directorfile.common import EndiannessAwareReader, ParsingError
 
 
@@ -110,8 +110,18 @@ class RIFFXtraFileResource(Resource):
 class ApplicationArchiveParser(DirectorArchiveParser):
     TYPES = {'APPL'}
 
-    RESOURCE_CLASSES: Dict[str, Type[Resource]]
-    FILE_RESOURCE_CLASSES: Sequence[Type[Resource]]
+    RESOURCE_CLASSES: Dict[str, Type[Resource]] = {
+        cls.TAG: cls for cls in (
+            ListResource,
+            DictResource,
+            BadDResource,
+        )
+    }
+
+    FILE_RESOURCE_CLASSES: Sequence[Type[Resource]] = [
+        RIFXArchiveResource,
+        RIFFXtraFileResource
+    ]
 
     files: List[FileRecord]
 
@@ -168,3 +178,29 @@ class ApplicationArchiveParser(DirectorArchiveParser):
             if resource_class is None:
                 raise ParsingError(f"Unknown resource type '{tag}'")
             return resource_class().load(fp=fp, position=position, size=size)
+
+
+class ApplicationRIFXArchiveResource(RIFXArchiveResource):
+    PARSERS = [ApplicationArchiveParser]
+
+    _parser: ApplicationArchiveParser
+    xtras: Dict[str, Resource]
+    casts: Dict[str, Resource]
+    movies: Dict[str, Resource]
+
+    def __init__(self):
+        super().__init__()
+        self.xtras = {}
+        self.casts = {}
+        self.movies = {}
+
+    def _parse(self, reader: EndiannessAwareReader, size: int):
+        super()._parse(reader, size)
+        for file_record in self._parser.files:
+            files_dict = {
+                FileType.XTRA: self.xtras,
+                FileType.DIRECTOR_CAST: self.casts,
+                FileType.DIRECTOR_MOVIE: self.movies,
+            }[file_record.type]
+
+            files_dict[file_record.filename] = file_record.resource

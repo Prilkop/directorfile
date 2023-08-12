@@ -4,12 +4,12 @@ from io import SEEK_END
 from struct import unpack
 from typing import BinaryIO
 
-from directorfile.archive.base import RIFXArchiveResource
+from directorfile.archive import ApplicationRIFXArchiveResource
 from directorfile.common import ParsingError
 
 
 class Projector:
-    application: RIFXArchiveResource
+    application: ApplicationRIFXArchiveResource
     _name: str = 'UNINITIALIZED'
 
     def __repr__(self):
@@ -33,7 +33,6 @@ class Projector:
     def load(self, fp: BinaryIO):
         self._name = os.path.abspath(fp.name)
         position = self._locate_application(fp)
-        self.application = RIFXArchiveResource().load(fp, position)
+        self.application = ApplicationRIFXArchiveResource().load(fp, position)
 
         return self
-
