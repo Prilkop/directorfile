@@ -92,10 +92,13 @@ class DirectorArchiveParser(ArchiveParser):
              'MC08', 'MC85', 'MC95', 'MC97', 'MMQ5', 'MV07', 'MV08', 'MV85', 'MV93', 'MV95', 'MV97'}
 
     mmap: MMapResource
+
+    entries: List[Tuple[MMapResource.Entry, Resource]]
     _resources: Dict[Tuple[str, int], Resource]
 
     def __init__(self, archive: RIFXArchiveResource, reader: EndiannessAwareReader):
         super().__init__(archive, reader)
+        self.entries = []
         self._resources = {}
 
     def _populate_fetched_resource(self, resource: Resource, position: int):
@@ -127,5 +130,6 @@ class DirectorArchiveParser(ArchiveParser):
         self._populate_fetched_resource(mmap, imap.mmap_position)
 
         self.mmap = mmap
-
-        return mmap.entries[3:]
+        self.entries = [(entry, self._fetch_resource(entry))
+                        for entry in mmap.entries[3:]
+                        if entry.tag not in ('free', 'junk')]

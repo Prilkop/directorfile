@@ -1,11 +1,26 @@
 from __future__ import annotations
 
 import zlib
+from dataclasses import dataclass
+from enum import IntEnum
 from typing import Dict, List, Sequence, Tuple, Type
 
 from directorfile.archive.base import Resource
 from directorfile.archive.director import DirectorArchiveParser, MMapResource
-from directorfile.common import EndiannessAwareReader
+from directorfile.common import EndiannessAwareReader, ParsingError
+
+
+class FileType(IntEnum):
+    DIRECTOR_MOVIE = 0
+    DIRECTOR_CAST = 1
+    XTRA = 2
+
+
+@dataclass
+class FileRecord:
+    filename: str
+    type: FileType
+    resource: Resource
 
 
 class DictResource(Resource):
@@ -22,7 +37,8 @@ class DictResource(Resource):
         reader.skip(8)
         length = reader.read_ui32()
         assert length < 0x10000  # XXX: This is here to make sure we are in the right endianness. Unsure if it's needed
-        assert reader.read_ui32() == length
+        allocated_length = reader.read_ui32()
+        assert allocated_length >= length
         assert reader.read_ui16() == 0x1c
         assert reader.read_ui16() == 0x08
         reader.skip(8)
@@ -33,7 +49,7 @@ class DictResource(Resource):
             key = reader.read_ui32()
             pairs.append((key, value_offset))
 
-        assert reader.get_current_pos() == values_base
+        assert reader.get_current_pos() + 8 * (allocated_length - length) == values_base
 
         mapping = {}
         for key, value_offset in pairs:
@@ -47,15 +63,26 @@ class DictResource(Resource):
 class ListResource(Resource):
     TAG = 'List'
 
+    members: List[Tuple[int, int]]
+
     def _parse(self, reader: EndiannessAwareReader, size: int):
-        pass
+        reader.skip(8)
+        length = reader.read_ui32()
+        allocated_length = reader.read_ui32()
+        assert allocated_length >= length
+        assert reader.read_ui16() == 0x14
+        assert reader.read_ui16() == 0x08
+
+        pairs = []
+        for i in range(length):
+            index = reader.read_ui32()
+            value = reader.read_ui32()
+            pairs.append((index, value))
+        self.members = pairs
 
 
-class BadDResource(Resource):
+class BadDResource(DictResource):
     TAG = 'BadD'
-
-    def _parse(self, reader: EndiannessAwareReader, size: int):
-        pass
 
 
 class RIFFXtraFileResource(Resource):
@@ -86,25 +113,39 @@ class ApplicationArchiveParser(DirectorArchiveParser):
     RESOURCE_CLASSES: Dict[str, Type[Resource]]
     FILE_RESOURCE_CLASSES: Sequence[Type[Resource]]
 
-    files: List[Tuple[str, Resource]]
+    files: List[FileRecord]
 
     def parse(self):
-        entries = super().parse()
-        assert entries[0].tag == 'List'
+        super().parse()
+        entries = self.mmap.entries
 
-        assert entries[1].tag == 'Dict'
-        filename_dict = self._fetch_resource(entries[1])
+        list_entry = entries[3]
+        assert list_entry.tag == 'List'
+        file_list = self._fetch_resource(list_entry)
+        assert isinstance(file_list, ListResource)
+
+        dict_entry = entries[4]
+        assert dict_entry.tag == 'Dict'
+        filename_dict = self._fetch_resource(dict_entry)
         assert isinstance(filename_dict, DictResource)
 
-        assert entries[2].tag == 'BadD'
+        badd_entry = entries[5]
+        assert badd_entry.tag == 'BadD'
+        badd_dict = self._fetch_resource(badd_entry)
+        assert isinstance(badd_dict, DictResource)
 
-        file_entries = entries[3:]
-        assert all(entry.tag == 'File' for entry in file_entries)
+        files = []
+        for i, (entry_index, file_type) in enumerate(file_list.members):
+            entry = entries[entry_index]
+            assert entry.tag == 'File'
+            file_resource = self._fetch_resource(entry)
 
-        return [
-            (filename_dict.mapping[index], self._fetch_resource(entry))
-            for index, entry in enumerate(file_entries)
-        ]
+            filename = filename_dict.mapping[i]
+
+            files.append(FileRecord(filename, FileType(file_type), file_resource))
+
+        self.files = files
+        self.badd = badd_dict.mapping
 
     def _reconstruct_resource(self, entry: MMapResource.Entry):
         fp = self._reader.fp
