@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from directorfile.archive.base import ArchiveParser, RIFXArchiveResource, Resource
 from directorfile.common import EndiannessAwareReader
@@ -62,9 +62,8 @@ class MMapResource(Resource):
         length = reader.read_ui32()
         assert allocated_length >= length
 
-        used_resources_count = reader.read_i32()
-        assert reader.read_i32() == -1
-        available_index = reader.read_i32()
+        unk_junk_indices = [reader.read_i32(), reader.read_i32()]
+        unk_free_index = reader.read_i32()
 
         entries = []
         for index in range(length):
@@ -73,6 +72,9 @@ class MMapResource(Resource):
             position = reader.read_ui32()
             reader.skip(8)
             entries.append(MMapResource.Entry(index=index, tag=tag, size=size, position=position))
+
+        assert all(index == -1 or entries[index].tag == 'junk' for index in unk_junk_indices)
+        assert unk_free_index == -1 or entries[unk_free_index].tag == 'free'
 
         self.entries = entries
 
