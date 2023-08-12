@@ -15,7 +15,7 @@ class EndiannessAwareReader:
 
     def __init__(self, fp: BinaryIO, endianness: Endianness):
         self.fp = fp
-        self._endianness = endianness
+        self.endianness = endianness
 
     def jump(self, position):
         self.fp.seek(position)
@@ -27,27 +27,31 @@ class EndiannessAwareReader:
         return self.fp.tell()
 
     def read_ui16(self) -> int:
-        (data,) = unpack(self._endianness + "H", self.read_buffer(2))
-        return data
+        (num,) = unpack(self.endianness + "H", self.read_buffer(2))
+        return num
+
+    def read_i16(self) -> int:
+        (num,) = unpack(self.endianness + "h", self.read_buffer(2))
+        return num
 
     def read_ui32(self) -> int:
-        (data,) = unpack(self._endianness + "I", self.read_buffer(4))
-        return data
+        (num,) = unpack(self.endianness + "I", self.read_buffer(4))
+        return num
 
     def read_i32(self) -> int:
-        (data,) = unpack(self._endianness + "i", self.read_buffer(4))
-        return data
+        (num,) = unpack(self.endianness + "i", self.read_buffer(4))
+        return num
 
     def read_buffer(self, count) -> bytes:
         data = self.fp.read(count)
         return data
 
-    def read_tag(self):
+    def read_tag(self) -> str:
         tag = self.read_buffer(4)
-        if self._endianness == Endianness.LITTLE_ENDIAN:
+        if self.endianness == Endianness.LITTLE_ENDIAN:
             tag = tag[::-1]
         return tag.decode("ascii")
 
-    def read_string(self):
+    def read_string(self) -> str:
         length = self.read_ui32()
         return self.read_buffer(length).decode('ascii')
