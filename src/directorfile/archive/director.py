@@ -22,15 +22,18 @@ DIRECTOR_VERSIONS = {
 
 
 class GenericResource(Resource):
+    data: bytes
+
     @property
     def TAG(self):
         return self._tag
 
     def __init__(self, tag: str):
+        super().__init__()
         self._tag = tag
 
     def _parse(self, reader: EndiannessAwareReader, size: int):
-        self.data = reader.read_buffer(size - 8)
+        self.data = reader.read_buffer(size)
 
 
 class IMapResource(Resource):
