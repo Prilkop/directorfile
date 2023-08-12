@@ -7,6 +7,10 @@ from directorfile.archive.base import ArchiveParser, RIFXArchiveResource, Resour
 from directorfile.common import EndiannessAwareReader
 
 DIRECTOR_VERSIONS = {
+    0x404: '3.0',
+    0x405: '3.1',
+    0x45b: '4.0.0',
+    0x45d: '4.0.4',
     0x4c1: '5.0',
     0x4c7: '6.0',
     0x57e: '7.0',
@@ -15,9 +19,10 @@ DIRECTOR_VERSIONS = {
     0x73a: '8.5.1',
     0x742: '10.0',
     0x744: '10.1',
-    0x782: '11.5.0r593',
+    0x781: '11.0',
+    0x782: '11.5.0.593',
     0x783: '11.5.8.612',
-    0x79f: '12'
+    0x79f: '12',
 }
 
 
