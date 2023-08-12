@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import BinaryIO, Optional, Sequence, Type
 
-from directorfile.common import Endianness, EndiannessAwareReader
+from directorfile.common import Endianness, EndiannessAwareReader, ParsingError
 
 
 class Resource(metaclass=ABCMeta):
@@ -18,7 +18,7 @@ class Resource(metaclass=ABCMeta):
         elif tag == self.TAG[::-1]:
             endianness = Endianness.LITTLE_ENDIAN
         else:
-            raise TypeError(f'Expected {self.TAG} tag, got {tag} instead')
+            raise ParsingError(f'Expected {self.TAG} tag, got {tag} instead')
         reader = EndiannessAwareReader(fp, endianness)
 
         read_size = reader.read_ui32()
@@ -33,7 +33,7 @@ class Resource(metaclass=ABCMeta):
         return self
 
     @abstractmethod
-    def _parse(self, reader: EndiannessAwareReader, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int) -> None:
         pass
 
     @property
@@ -74,6 +74,6 @@ class RIFXArchiveResource(Resource):
                 parser = parser_class(self, reader)
                 break
         else:
-            raise TypeError(f'Could not find parser for a {tag} archive')
+            raise ParsingError(f'Could not find parser for a {tag} archive')
 
         self.content = parser.parse()

@@ -117,13 +117,13 @@ class ApplicationArchiveParser(DirectorArchiveParser):
             for resource_class in self.FILE_RESOURCE_CLASSES:
                 try:
                     return resource_class().load(fp=fp, position=position, size=size)
-                except TypeError:
+                except ParsingError:
                     pass
             else:
                 fp.seek(position)
-                raise TypeError(f"Unknown file header: {fp.read(12)}")
+                raise ParsingError(f"Unknown file header: {fp.read(12)}")
         else:
             resource_class = self.RESOURCE_CLASSES.get(tag)
             if resource_class is None:
-                raise TypeError(f"Unknown resource type '{tag}'")
+                raise ParsingError(f"Unknown resource type '{tag}'")
             return resource_class().load(fp=fp, position=position, size=size)

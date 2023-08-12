@@ -55,3 +55,7 @@ class EndiannessAwareReader:
     def read_string(self) -> str:
         length = self.read_ui32()
         return self.read_buffer(length).decode('ascii')
+
+
+class ParsingError(Exception):
+    pass

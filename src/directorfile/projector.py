@@ -5,6 +5,7 @@ from struct import unpack
 from typing import BinaryIO
 
 from directorfile.archive.base import RIFXArchiveResource
+from directorfile.common import ParsingError
 
 
 class Projector:
@@ -26,7 +27,7 @@ class Projector:
             if re.match(rb'PJ\d\d|\d\dJP', tag):
                 container_position, = unpack('<I', fp.read(4))
             else:
-                raise TypeError('Could not locate a PJ section')
+                raise ParsingError('Could not locate a PJ section')
         return container_position
 
     def load(self, fp: BinaryIO):
