@@ -13,7 +13,7 @@ class DictResource(Resource):
 
     mapping: Dict[int, str]
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         values_chunk_offset = reader.read_ui32()
         values_chunk_size = reader.read_ui32()
 
@@ -47,21 +47,21 @@ class DictResource(Resource):
 class ListResource(Resource):
     TAG = 'List'
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         pass
 
 
 class BadDResource(Resource):
     TAG = 'BadD'
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         pass
 
 
 class RIFFXtraFileResource(Resource):
     TAG = 'RIFF'
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         assert reader.read_tag() == 'Xtra'
         assert reader.read_tag() == 'FILE'
 

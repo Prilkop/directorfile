@@ -29,11 +29,11 @@ class Resource(metaclass=ABCMeta):
 
         self.size = size
 
-        self._parse(reader, position, size)
+        self._parse(reader, size)
         return self
 
     @abstractmethod
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         pass
 
     @property
@@ -66,7 +66,7 @@ class RIFXArchiveResource(Resource):
     def init_parsers(cls, *parsers):
         cls.PARSERS = parsers
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         tag = reader.read_tag()
 
         for parser_class in self.PARSERS:

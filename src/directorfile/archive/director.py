@@ -29,7 +29,7 @@ class GenericResource(Resource):
     def __init__(self, tag: str):
         self._tag = tag
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         self.data = reader.read_buffer(size - 8)
 
 
@@ -39,7 +39,7 @@ class IMapResource(Resource):
     mmap_position: int
     director_version: int
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         assert reader.read_ui32() == 0x01
         self.mmap_position = reader.read_ui32()
         self.director_version = reader.read_ui32()
@@ -50,7 +50,7 @@ class IMapResource(Resource):
 class MMapResource(Resource):
     TAG = 'mmap'
 
-    def _parse(self, reader: EndiannessAwareReader, position: int, size: int):
+    def _parse(self, reader: EndiannessAwareReader, size: int):
         header_size = reader.read_ui16()
         assert header_size == 0x18
         width = reader.read_ui16()
