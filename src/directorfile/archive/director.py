@@ -50,6 +50,8 @@ class IMapResource(Resource):
 class MMapResource(Resource):
     TAG = 'mmap'
 
+    entries: List["MMapResource.Entry"]
+
     def _parse(self, reader: EndiannessAwareReader, size: int):
         header_size = reader.read_ui16()
         assert header_size == 0x18
@@ -65,20 +67,18 @@ class MMapResource(Resource):
         available_index = reader.read_i32()
 
         entries = []
-        for i in range(length):
-            entry_position = reader.get_current_pos()
+        for index in range(length):
             tag = reader.read_tag()
             size = reader.read_ui32()
             position = reader.read_ui32()
             reader.skip(8)
-            entries.append(MMapResource.Entry(entry_position=entry_position,
-                                              tag=tag, size=size, position=position))
+            entries.append(MMapResource.Entry(index=index, tag=tag, size=size, position=position))
 
         self.entries = entries
 
     @dataclass
     class Entry:
-        entry_position: int
+        index: int
         tag: str
         size: int
         position: int
