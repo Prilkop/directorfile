@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import os
 import zlib
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 from typing import BinaryIO, Dict, List, Optional, Sequence, Tuple, Type
 
-from directorfile.archive.base import Resource
+from directorfile.archive.base import FileResource, Resource
 from directorfile.archive.director import DirectorArchiveParser, DirectorArchiveResource, DirectorArchiveSerializer, \
     MMapResource, RIFXArchiveResource
 from directorfile.common import Endianness, EndiannessAwareStream, ParsingError, calculate_alignment_remainder
@@ -21,7 +22,7 @@ class FileType(IntEnum):
 class FileRecord:
     filename: str
     type: FileType
-    resource: Resource
+    resource: FileResource
 
 
 class DictResource(Resource):
@@ -183,7 +184,7 @@ class BadDResource(DictResource):
     TAG = 'BadD'
 
 
-class RIFFXtraFileResource(Resource):
+class RIFFXtraFileResource(FileResource):
     TAG = 'RIFF'
 
     HEADER_SIZE = 0x1c
@@ -241,7 +242,7 @@ class ApplicationArchiveParser(DirectorArchiveParser):
         )
     }
 
-    FILE_RESOURCE_CLASSES: Sequence[Type[Resource]] = [
+    FILE_RESOURCE_CLASSES: Sequence[Type[FileResource]] = [
         DirectorArchiveResource,
         RIFFXtraFileResource
     ]
@@ -277,6 +278,9 @@ class ApplicationArchiveParser(DirectorArchiveParser):
             filename = filename_dict.mapping[i]
 
             file_resource = self._fetch_resource(entry)
+
+            assert isinstance(file_resource, FileResource)
+            file_resource.filename = filename
 
             files.append(FileRecord(filename, FileType(file_type), file_resource))
 
@@ -354,14 +358,15 @@ class ApplicationArchiveResource(RIFXArchiveResource):
     PARSERS = [ApplicationArchiveParser]
 
     _parser: ApplicationArchiveParser
-    xtras: Dict[str, Resource]
-    casts: Dict[str, Resource]
-    movies: Dict[str, Resource]
+    xtras: Dict[str, FileResource]
+    casts: Dict[str, FileResource]
+    movies: Dict[str, FileResource]
 
     badd: Dict[int, str]
     director_version: int
 
-    def __init__(self):
+    def __init__(self, filename: str = ''):
+        super().__init__(filename)
         self.xtras = {}
         self.casts = {}
         self.movies = {}
@@ -375,7 +380,7 @@ class ApplicationArchiveResource(RIFXArchiveResource):
                 FileType.DIRECTOR_MOVIE: self.movies,
             }[file_record.type]
 
-            files_dict[file_record.filename] = file_record.resource
+            files_dict[os.path.basename(file_record.filename)] = file_record.resource
 
         self.badd = self._parser.badd
 

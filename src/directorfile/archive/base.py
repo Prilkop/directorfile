@@ -101,7 +101,22 @@ class ArchiveSerializer(metaclass=ABCMeta):
         pass
 
 
-class RIFXArchiveResource(Resource):
+class FileResource(Resource, metaclass=ABCMeta):
+    filename: str
+
+    def __init__(self, filename: str = ''):
+        self.filename = filename
+
+    def __repr__(self):
+        if self.filename:
+            identifier = f'"{self.filename}"'
+        else:
+            identifier = f'"at {hex(id(self))}'
+
+        return f'<{type(self).__qualname__} {identifier}>'
+
+
+class RIFXArchiveResource(FileResource):
     TAG = 'RIFX'
 
     PARSERS: Sequence[Type[ArchiveParser]] = tuple()

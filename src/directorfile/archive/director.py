@@ -257,7 +257,8 @@ class DirectorArchiveResource(RIFXArchiveResource):
     resources: Dict[int, Resource]
     director_version: int
 
-    def __init__(self, resources: Dict[int, Resource] = None, director_version: int = None):
+    def __init__(self, filename: str = '', resources: Dict[int, Resource] = None, director_version: int = None):
+        super().__init__(filename=filename)
         if not resources:
             self.resources = {}
         else:
