@@ -35,6 +35,10 @@ class GenericResource(Resource):
 
     def __init__(self, tag: str):
         self._tag = tag
+        self.data = b''
+
+    def __repr__(self):
+        return f'<GenericResource "{self._tag}" ({len(self.data)} bytes) at {hex(id(self))}>'
 
     def _parse(self, reader: EndiannessAwareStream, size: int) -> None:
         self.data = reader.read_buffer(size)
@@ -149,7 +153,7 @@ class MMapResource(Resource):
         size: int
 
         def __repr__(self):
-            return f'<Resource "{self.tag}" entry @ 0x{self.position:08x}({self.size})>'
+            return f'<MMap Entry for "{self.tag}" @ 0x{self.position:08x} ({self.size} bytes)>'
 
 
 class DirectorArchiveParser(ArchiveParser):

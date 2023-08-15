@@ -311,7 +311,6 @@ class ApplicationArchiveParser(DirectorArchiveParser):
 
 
 class ApplicationArchiveSerializer(DirectorArchiveSerializer):
-
     def _serialize(self, stream: EndiannessAwareStream, archive: ApplicationArchiveResource):
         xtras_first_index = 6
         movies_first_index = xtras_first_index + len(archive.xtras)
@@ -358,9 +357,9 @@ class ApplicationArchiveResource(RIFXArchiveResource):
     PARSERS = [ApplicationArchiveParser]
 
     _parser: ApplicationArchiveParser
-    xtras: Dict[str, FileResource]
-    casts: Dict[str, FileResource]
-    movies: Dict[str, FileResource]
+    xtras: Dict[str, RIFFXtraFileResource]
+    casts: Dict[str, RIFXArchiveResource]
+    movies: Dict[str, RIFXArchiveResource]
 
     badd: Dict[int, str]
     director_version: int

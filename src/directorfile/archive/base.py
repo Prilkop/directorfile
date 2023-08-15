@@ -7,6 +7,9 @@ from directorfile.common import Endianness, EndiannessAwareStream, ParsingError
 
 
 class Resource(metaclass=ABCMeta):
+    def __repr__(self):
+        return f'<{type(self).__qualname__} at {hex(id(self))}>'
+
     def load(self, fp: BinaryIO, position: Optional[int] = None, size: int = 0) -> Resource:
         if position is not None:
             fp.seek(position)
@@ -111,7 +114,7 @@ class FileResource(Resource, metaclass=ABCMeta):
         if self.filename:
             identifier = f'"{self.filename}"'
         else:
-            identifier = f'"at {hex(id(self))}'
+            identifier = f'at {hex(id(self))}'
 
         return f'<{type(self).__qualname__} {identifier}>'
 
