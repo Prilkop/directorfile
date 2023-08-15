@@ -1,4 +1,4 @@
-This projects aims to create a simple python module to read and manipulate Macromedia Director files. 
+A python module to read and manipulate Macromedia Director files. 
 
 In the creation of the code I used some reverse engineering as well as some of the following knowledge bases:
   - https://github.com/n0samu/director-files-extract/tree/master
