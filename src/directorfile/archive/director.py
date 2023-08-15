@@ -34,7 +34,6 @@ class GenericResource(Resource):
         return self._tag
 
     def __init__(self, tag: str):
-        super().__init__()
         self._tag = tag
 
     def _parse(self, reader: EndiannessAwareStream, size: int) -> None:
@@ -51,7 +50,6 @@ class IMapResource(Resource):
     director_version: int
 
     def __init__(self, mmap_position: int = None, director_version: int = None):
-        super().__init__()
         self.mmap_position = mmap_position
         self.director_version = director_version
 
@@ -84,7 +82,6 @@ class MMapResource(Resource):
     ENTRY_WIDTH = 0x14
 
     def __init__(self, entries: List["MMapResource.Entry"] = None):
-        super().__init__()
         if entries:
             self.entries = list(entries)
         else:
@@ -261,7 +258,6 @@ class DirectorArchiveResource(RIFXArchiveResource):
     director_version: int
 
     def __init__(self, resources: Dict[int, Resource] = None, director_version: int = None):
-        super().__init__()
         if not resources:
             self.resources = {}
         else:

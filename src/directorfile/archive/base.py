@@ -7,31 +7,23 @@ from directorfile.common import Endianness, EndiannessAwareStream, ParsingError
 
 
 class Resource(metaclass=ABCMeta):
-    size: int
-
-    def __init__(self):
-        self.size = 0
-
     def load(self, fp: BinaryIO, position: Optional[int] = None, size: int = 0) -> Resource:
         if position is not None:
             fp.seek(position)
 
-        reader = self.parse_header(fp)
-        return self.parse(reader, size)
+        reader = self.parse_tag(fp)
+        data_size = reader.read_ui32()
+        if size:
+            assert size >= data_size
+        return self.parse(reader, data_size)
 
     def parse(self, reader: EndiannessAwareStream, size: int) -> Resource:
         start = reader.get_current_pos()
-        if size:
-            if self.size:
-                assert self.size <= size
-            else:
-                self.size = size
-
-        self._parse(reader, self.size)
-        reader.jump(start + self.size)
+        self._parse(reader, size)
+        reader.jump(start + size)
         return self
 
-    def parse_header(self, fp: BinaryIO) -> EndiannessAwareStream:
+    def parse_tag(self, fp: BinaryIO) -> EndiannessAwareStream:
         tag = fp.read(4).decode('ascii')
         if tag == self.TAG:
             endianness = Endianness.BIG_ENDIAN
@@ -41,8 +33,6 @@ class Resource(metaclass=ABCMeta):
             raise ParsingError(f'Expected {self.TAG} tag, got {tag} instead')
 
         reader = EndiannessAwareStream(fp, endianness)
-        self.size = reader.read_ui32()
-
         return reader
 
     def save(self, fp: BinaryIO, endianness: Endianness, position: Optional[int] = None) -> int:

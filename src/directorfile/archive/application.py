@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import zlib
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from enum import IntEnum
 from typing import BinaryIO, Dict, List, Optional, Sequence, Tuple, Type
 
@@ -33,8 +33,6 @@ class DictResource(Resource):
     mapping: Dict[int, str]
 
     def __init__(self, mapping: Dict[int, str] = None):
-        super().__init__()
-
         if not mapping:
             self.mapping = {}
         else:
@@ -146,8 +144,6 @@ class ListResource(Resource):
     members: List[Tuple[int, int]]
 
     def __init__(self, members: List[Tuple[int, int]] = None):
-        super().__init__()
-
         if not members:
             self.members = []
         else:
@@ -366,7 +362,6 @@ class ApplicationArchiveResource(RIFXArchiveResource):
     director_version: int
 
     def __init__(self):
-        super().__init__()
         self.xtras = {}
         self.casts = {}
         self.movies = {}
