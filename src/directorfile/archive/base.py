@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABCMeta, abstractmethod
 from typing import BinaryIO, Optional, Sequence, Type
 
-from directorfile.common import Endianness, EndiannessAwareReader, ParsingError
+from directorfile.common import Endianness, EndiannessAwareStream, ParsingError
 
 
 class Resource(metaclass=ABCMeta):
@@ -19,7 +19,7 @@ class Resource(metaclass=ABCMeta):
         reader = self.parse_header(fp)
         return self.parse(reader, size)
 
-    def parse(self, reader: EndiannessAwareReader, size: int) -> Resource:
+    def parse(self, reader: EndiannessAwareStream, size: int) -> Resource:
         start = reader.get_current_pos()
         if size:
             if self.size:
@@ -31,7 +31,7 @@ class Resource(metaclass=ABCMeta):
         reader.jump(start + self.size)
         return self
 
-    def parse_header(self, fp: BinaryIO) -> EndiannessAwareReader:
+    def parse_header(self, fp: BinaryIO) -> EndiannessAwareStream:
         tag = fp.read(4).decode('ascii')
         if tag == self.TAG:
             endianness = Endianness.BIG_ENDIAN
@@ -40,13 +40,40 @@ class Resource(metaclass=ABCMeta):
         else:
             raise ParsingError(f'Expected {self.TAG} tag, got {tag} instead')
 
-        reader = EndiannessAwareReader(fp, endianness)
+        reader = EndiannessAwareStream(fp, endianness)
         self.size = reader.read_ui32()
 
         return reader
 
+    def save(self, fp: BinaryIO, endianness: Endianness, position: Optional[int] = None) -> int:
+        if position is not None:
+            fp.seek(position)
+
+        stream = EndiannessAwareStream(fp, endianness)
+        stream.skip(8)
+
+        start = stream.get_current_pos()
+        self.serialize(stream)
+        size = stream.get_current_pos() - start
+        stream.jump(start - 8)
+        self.serialize_header(stream, size)
+        stream.skip(size)
+
+        return size
+
+    def serialize(self, stream: EndiannessAwareStream):
+        self._serialize(stream)
+
+    def serialize_header(self, writer: EndiannessAwareStream, size: int):
+        writer.write_tag(self.TAG)
+        writer.write_ui32(size)
+
     @abstractmethod
-    def _parse(self, reader: EndiannessAwareReader, size: int) -> None:
+    def _parse(self, reader: EndiannessAwareStream, size: int) -> None:
+        pass
+
+    @abstractmethod
+    def _serialize(self, writer: EndiannessAwareStream) -> None:
         pass
 
     @property
@@ -56,7 +83,7 @@ class Resource(metaclass=ABCMeta):
 
 
 class ArchiveParser(metaclass=ABCMeta):
-    def __init__(self, archive: RIFXArchiveResource, reader: EndiannessAwareReader):
+    def __init__(self, archive: RIFXArchiveResource, reader: EndiannessAwareStream):
         self.archive = archive
         self._reader = reader
 
@@ -70,6 +97,20 @@ class ArchiveParser(metaclass=ABCMeta):
         pass
 
 
+class ArchiveSerializer(metaclass=ABCMeta):
+    def __init__(self, endianness: Endianness, director_version: int):
+        self.endianness = endianness
+        self.director_version = director_version
+
+    def serialize(self, fp: BinaryIO, archive: RIFXArchiveResource):
+        stream = EndiannessAwareStream(fp, self.endianness)
+        self._serialize(stream, archive)
+
+    @abstractmethod
+    def _serialize(self, stream: EndiannessAwareStream, archive: RIFXArchiveResource):
+        pass
+
+
 class RIFXArchiveResource(Resource):
     TAG = 'RIFX'
 
@@ -77,7 +118,7 @@ class RIFXArchiveResource(Resource):
 
     _parser: ArchiveParser
 
-    def _parse(self, reader: EndiannessAwareReader, size: int):
+    def _parse(self, reader: EndiannessAwareStream, size: int) -> None:
         tag = reader.read_tag()
 
         for parser_class in self.PARSERS:
@@ -89,3 +130,6 @@ class RIFXArchiveResource(Resource):
 
         self._parser = parser
         parser.parse()
+
+    def _serialize(self, writer: EndiannessAwareStream) -> None:
+        raise NotImplementedError('Not directly serializable')

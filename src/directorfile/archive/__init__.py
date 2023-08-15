@@ -1,11 +1,14 @@
-from .application import ApplicationRIFXArchiveResource
-from .base import RIFXArchiveResource
+from directorfile.archive.base import RIFXArchiveResource
+from directorfile.archive.director import DirectorArchiveResource
+from directorfile.archive.application import ApplicationArchiveResource
+
+from directorfile.archive.director import load_director_archive
 
 
 def _init_parsers():
-    from .base import RIFXArchiveResource
-    from .director import DirectorArchiveParser
-    from .shockwave import ShockwaveArchiveParser
+    from directorfile.archive.base import RIFXArchiveResource
+    from directorfile.archive.director import DirectorArchiveParser
+    from directorfile.archive.shockwave import ShockwaveArchiveParser
 
     RIFXArchiveResource.PARSERS = [
         DirectorArchiveParser,
