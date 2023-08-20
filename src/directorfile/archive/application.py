@@ -319,15 +319,15 @@ class ApplicationArchiveSerializer(DirectorArchiveSerializer):
         files = [
             *(
                 (xtras_first_index + index, FileType.XTRA, path, resource)
-                for index, (path, resource) in enumerate(archive.xtras.items())
+                for index, (path, resource) in enumerate(archive.xtras)
             ),
             *(
                 (movies_first_index + index, FileType.DIRECTOR_MOVIE, path, resource)
-                for index, (path, resource) in enumerate(archive.movies.items())
+                for index, (path, resource) in enumerate(archive.movies)
             ),
             *(
                 (casts_first_index + index, FileType.DIRECTOR_CAST, path, resource)
-                for index, (path, resource) in enumerate(archive.casts.items())
+                for index, (path, resource) in enumerate(archive.casts)
             ),
         ]
 
@@ -357,29 +357,29 @@ class ApplicationArchiveResource(RIFXArchiveResource):
     PARSERS = [ApplicationArchiveParser]
 
     _parser: ApplicationArchiveParser
-    xtras: Dict[str, RIFFXtraFileResource]
-    casts: Dict[str, RIFXArchiveResource]
-    movies: Dict[str, RIFXArchiveResource]
+    xtras: List[Tuple[str, RIFFXtraFileResource]]
+    casts: List[Tuple[str, RIFXArchiveResource]]
+    movies: List[Tuple[str, RIFXArchiveResource]]
 
     badd: Dict[int, str]
     director_version: int
 
     def __init__(self, filename: str = ''):
         super().__init__(filename)
-        self.xtras = {}
-        self.casts = {}
-        self.movies = {}
+        self.xtras = []
+        self.casts = []
+        self.movies = []
 
     def _parse(self, reader: EndiannessAwareStream, size: int) -> None:
         super()._parse(reader, size)
         for file_record in self._parser.files:
-            files_dict = {
+            files_list = {
                 FileType.XTRA: self.xtras,
                 FileType.DIRECTOR_CAST: self.casts,
                 FileType.DIRECTOR_MOVIE: self.movies,
             }[file_record.type]
 
-            files_dict[os.path.basename(file_record.filename)] = file_record.resource
+            files_list.append((os.path.basename(file_record.filename), file_record.resource))
 
         self.badd = self._parser.badd
 
